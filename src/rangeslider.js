@@ -263,9 +263,14 @@
     };
 
     Plugin.prototype.getValueFromPosition = function(pos) {
-        var percentage, value;
-        percentage = this.cap((pos) / (this.maxHandleX || 1), 0, 1);
-        value = this.cap(this.step * Math.round((((percentage) * (this.max - this.min)) + this.min) / this.step), this.min, this.max);
+        var percentage, value, maxHandleX = this.maxHandleX;
+		var max = this.max, min = this.min;
+		if (!maxHandleX) {
+			// happens, if the slider is initially invisible
+			return this.value;
+		}
+        percentage = this.cap((pos) / maxHandleX, 0, 1);
+        value = this.cap(this.step * Math.round((((percentage) * (max - min)) + min) / this.step), min, max);
         return Number((value).toFixed(2));
     };
 
