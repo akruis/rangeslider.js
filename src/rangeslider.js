@@ -170,7 +170,7 @@
             this.$range.removeClass(this.options.disabledClass);
         }
 
-        this.setPosition(this.position);
+        this.setPosition(this.position, false);
     };
 
     Plugin.prototype.handleDown = function(e) {
