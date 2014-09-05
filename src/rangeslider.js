@@ -111,6 +111,7 @@
         this.$fill      = $('<div class="' + this.options.fillClass + '" />');
         this.$handle    = $('<div class="' + this.options.handleClass + '" />');
         this.$range     = $('<div class="' + this.options.rangeClass + '" id="' + this.identifier + '" />').insertAfter(this.$element).prepend(this.$fill, this.$handle);
+        this.initialValue = undefined;
 
         // visually hide the input
         this.$element.css({
@@ -145,6 +146,7 @@
 
             var value = e.target.value,
                 pos = _this.getPositionFromValue(value);
+            _this.initialValue = undefined;
             _this.setPosition(pos, _this.triggerOnValueSet);
         });
     }
@@ -177,6 +179,7 @@
         e.preventDefault();
         this.$document.on(this.moveEvent, this.handleMove);
         this.$document.on(this.endEvent, this.handleEnd);
+        this.initialValue = this.value;
 
         // If we click on the handle don't set the new position
         if ((' ' + e.target.className + ' ').replace(/[\n\t]/g, ' ').indexOf(this.options.handleClass) > -1) {
@@ -206,7 +209,7 @@
         this.$document.off(this.endEvent, this.handleEnd);
 
         if (this.onSlideEnd && typeof this.onSlideEnd === 'function') {
-            this.onSlideEnd(this.position, this.value);
+            this.onSlideEnd(this.position, this.value, this.initialValue);
         }
     };
 
@@ -235,7 +238,7 @@
         this.value = value;
 
         if (this.onSlide && typeof this.onSlide === 'function' && triggerEvent) {
-            this.onSlide(left, value);
+            this.onSlide(left, value, this.initialValue);
         }
     };
 
