@@ -27,6 +27,7 @@
 
     var pluginName = 'rangeslider',
         pluginInstances = [],
+        pluginIdentifier = 0,
         inputrange = supportsRange(),
         defaults = {
             polyfill: true,
@@ -77,6 +78,72 @@
     }
 
     /**
+     * Check if a `element` is visible in the DOM
+     *
+     * @param  {Element}  element
+     * @return {Boolean}
+     */
+    function isHidden(element) {
+        if (element.offsetWidth !== 0 || element.offsetHeight !== 0) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Get hidden parentNodes of an `element`
+     *
+     * @param  {Element} element
+     * @return {[type]}
+     */
+    function getHiddenParentNodes(element) {
+        var parents = [],
+            node    = element.parentNode;
+
+        while (isHidden(node)) {
+            parents.push(node);
+            node = node.parentNode;
+        }
+        return parents;
+    }
+
+    /**
+     * Returns dimensions for an element even if it is not visible in the DOM.
+     *
+     * @param  {Element} element
+     * @param  {String}  key     (e.g. offsetWidth …)
+     * @return {Number}
+     */
+    function getDimension(element, key) {
+        var hiddenParentNodes       = getHiddenParentNodes(element),
+            hiddenParentNodesLength = hiddenParentNodes.length,
+            displayProperty         = [],
+            dimension               = element[key];
+
+        if (hiddenParentNodesLength) {
+            for (var i = 0; i < hiddenParentNodesLength; i++) {
+                // Cache the display property to restore it later.
+                displayProperty[i] = hiddenParentNodes[i].style.display;
+
+                hiddenParentNodes[i].style.display = 'block';
+                hiddenParentNodes[i].style.height = '0';
+                hiddenParentNodes[i].style.overflow = 'hidden';
+                hiddenParentNodes[i].style.visibility = 'hidden';
+            }
+
+            dimension = element[key];
+
+            for (var j = 0; j < hiddenParentNodesLength; j++) {
+                hiddenParentNodes[j].style.display = displayProperty[j];
+                hiddenParentNodes[j].style.height = '';
+                hiddenParentNodes[j].style.overflow = '';
+                hiddenParentNodes[j].style.visibility = '';
+            }
+        }
+        return dimension;
+    }
+
+    /**
      * Plugin
      * @param {String} element
      * @param {Object} options
@@ -103,11 +170,12 @@
             if (inputrange) { return false; }
         }
 
-        this.identifier = 'js-' + pluginName + '-' +(+new Date());
+        this.identifier = 'js-' + pluginName + '-' +(pluginIdentifier++);
         this.min        = parseFloat(this.$element[0].getAttribute('min') || 0);
         this.max        = parseFloat(this.$element[0].getAttribute('max') || 100);
         this.value      = parseFloat(this.$element[0].value || this.min + (this.max-this.min)/2);
         this.step       = parseFloat(this.$element[0].getAttribute('step') || 1);
+        this.toFixed    = (this.step + '').replace('.', '').length - 1;
         this.$fill      = $('<div class="' + this.options.fillClass + '" />');
         this.$handle    = $('<div class="' + this.options.handleClass + '" />');
         this.$range     = $('<div class="' + this.options.rangeClass + '" id="' + this.identifier + '" />').insertAfter(this.$element).prepend(this.$fill, this.$handle);
@@ -159,8 +227,8 @@
     };
 
     Plugin.prototype.update = function() {
-        this.handleWidth    = this.$handle[0].offsetWidth;
-        this.rangeWidth     = this.$range[0].offsetWidth;
+        this.handleWidth    = getDimension(this.$handle[0], 'offsetWidth');
+        this.rangeWidth     = getDimension(this.$range[0], 'offsetWidth');
         this.maxHandleX     = this.rangeWidth - this.handleWidth;
         this.grabX          = this.handleWidth / 2;
         this.position       = this.getPositionFromValue(this.value);
@@ -225,7 +293,7 @@
         triggerEvent = (triggerEvent === false) ? false : true;
 
         // Snapping steps
-        value = (this.getValueFromPosition(this.cap(pos, 0, this.maxHandleX)) / this.step) * this.step;
+        value = this.getValueFromPosition(this.cap(pos, 0, this.maxHandleX));
         left = this.getPositionFromValue(value);
 
         // Update ui
@@ -254,8 +322,23 @@
 
     Plugin.prototype.getRelativePosition = function(e) {
         // Get the offset left relative to the viewport
-        var rangeX = this.$range[0].getBoundingClientRect().left;
-        return (e.pageX || e.originalEvent.clientX || e.originalEvent.touches[0].clientX || e.currentPoint.x) - rangeX;
+        var rangeX  = this.$range[0].getBoundingClientRect().left,
+            pageX   = 0;
+
+        if (typeof e.pageX !== 'undefined') {
+            pageX = e.pageX;
+        }
+        else if (typeof e.originalEvent.clientX !== 'undefined') {
+            pageX = e.originalEvent.clientX;
+        }
+        else if (e.originalEvent.touches && e.originalEvent.touches[0] && typeof e.originalEvent.touches[0].clientX !== 'undefined') {
+            pageX = e.originalEvent.touches[0].clientX;
+        }
+        else if(e.currentPoint && typeof e.currentPoint.x !== 'undefined') {
+            pageX = e.currentPoint.x;
+        }
+
+        return pageX - rangeX;
     };
 
     Plugin.prototype.getPositionFromValue = function(value) {
@@ -274,7 +357,7 @@
 		}
         percentage = this.cap((pos) / maxHandleX, 0, 1);
         value = this.cap(this.step * Math.round((((percentage) * (max - min)) + min) / this.step), min, max);
-        return Number((value).toFixed(2));
+        return Number((value).toFixed(this.toFixed));
     };
 
     Plugin.prototype.setValue = function(value) {
