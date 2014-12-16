@@ -180,6 +180,11 @@
         this.$fill      = $('<div class="' + this.options.fillClass + '" />');
         this.$handle    = $('<div class="' + this.options.handleClass + '" />');
         this.$range     = $('<div class="' + this.options.rangeClass + '" id="' + this.identifier + '" />').insertAfter(this.$element).prepend(this.$fill, this.$handle);
+        if (this.$element.css('direction') !== this.$range.css('direction')) {
+            // direction was not inherited, explicitly copy the style
+            this.$range.css('direction', this.$element.css('direction'));
+        }
+        this.rtl        = this.$range.css('direction') === 'rtl';
         this.initialValue = undefined;
 
         // visually hide the input
@@ -299,7 +304,11 @@
 
         // Update ui
         this.$fill[0].style.width = (left + this.grabX)  + 'px';
-        this.$handle[0].style.left = left + 'px';
+        if (this.rtl) {
+            this.$handle[0].style.right = left + 'px';
+        } else {
+            this.$handle[0].style.left = left + 'px';
+        }
         this.setValue(value);
 
         // Update globals
@@ -357,6 +366,9 @@
 			return this.value;
 		}
         percentage = this.cap((pos) / maxHandleX, 0, 1);
+        if (this.rtl) {
+            percentage = 1 - percentage;
+        }
         value = this.cap(this.step * Math.round((((percentage) * (max - min)) + min) / this.step), min, max);
         return Number((value).toFixed(this.toFixed));
     };
